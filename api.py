@@ -69,25 +69,26 @@ class ClientIDsField(object):
 
 
 class ClientsInterestsRequest(object):
-    client_ids = ClientIDsField(required=True)
-    date = DateField(required=False, nullable=True)
+    # client_ids = ClientIDsField(required=True)
+    # date = DateField(required=False, nullable=True)
+    pass
 
 
 class OnlineScoreRequest(object):
-    first_name = CharField(required=False, nullable=True)
-    last_name = CharField(required=False, nullable=True)
-    email = EmailField(required=False, nullable=True)
-    phone = PhoneField(required=False, nullable=True)
-    birthday = BirthDayField(required=False, nullable=True)
-    gender = GenderField(required=False, nullable=True)
-
+    # first_name = CharField(required=False, nullable=True)
+    # last_name = CharField(required=False, nullable=True)
+    # email = EmailField(required=False, nullable=True)
+    # phone = PhoneField(required=False, nullable=True)
+    # birthday = BirthDayField(required=False, nullable=True)
+    # gender = GenderField(required=False, nullable=True)
+    pass
 
 class MethodRequest(object):
-    account = CharField(required=False, nullable=True)
-    login = CharField(required=True, nullable=True)
-    token = CharField(required=True, nullable=True)
-    arguments = ArgumentsField(required=True, nullable=True)
-    method = CharField(required=True, nullable=False)
+    # account = CharField(required=False, nullable=True)
+    # login = CharField(required=True, nullable=True)
+    # token = CharField(required=True, nullable=True)
+    # arguments = ArgumentsField(required=True, nullable=True)
+    # method = CharField(required=True, nullable=False)
 
     @property
     def is_admin(self):
@@ -103,7 +104,7 @@ def check_auth(request):
 
 
 def method_handler(request, ctx, store):
-    response, code = None, None
+    response, code = None, BAD_REQUEST
     return response, code
 
 
@@ -120,6 +121,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         response, code = {}, OK
         context = {"request_id": self.get_request_id(self.headers)}
         request = None
+
         try:
             data_string = self.rfile.read(int(self.headers['Content-Length']))
             request = json.loads(data_string)
@@ -156,6 +158,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--port", action="store", type=int, default=8080)
     parser.add_argument("-l", "--log", action="store", default=None)
     args = parser.parse_args()
+
     logging.basicConfig(filename=args.log, level=logging.INFO,
                         format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
     server = HTTPServer(("localhost", args.port), MainHTTPHandler)
