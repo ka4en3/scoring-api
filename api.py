@@ -128,7 +128,8 @@ class PhoneField(Field):
         if not phone_str.startswith('7'):
             raise ValidationError(f"{self.field_name} must start with 7")
 
-        return value
+        return phone_str
+        # return value
 
 
 class DateField(Field):
@@ -164,7 +165,8 @@ class BirthDayField(DateField):
         if age > 70:
             raise ValidationError(f"{self.field_name} cannot be more than 70 years ago")
 
-        return value
+        return birth_date
+        # return value
 
 
 class GenderField(Field):
