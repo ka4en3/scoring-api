@@ -346,7 +346,7 @@ wheels = [
 [[package]]
 name = "scoring-api"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 
 [package.optional-dependencies]
 dev = [
