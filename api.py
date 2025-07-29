@@ -238,21 +238,28 @@ class Request(metaclass=RequestMeta):
             except ValidationError as e:
                 self.errors[field_name] = str(e)
 
-    def validate(self):
+    def validate(self) -> bool:
         """Validate all fields and request logic"""
         return not self.errors
 
     @property
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """Check if request is valid"""
         return self.validate()
 
 
-class ClientsInterestsRequest(Request):
-    """Request for clients_interests method"""
+class MethodRequest(Request):
+    """Main method request"""
 
-    client_ids = ClientIDsField(required=True)
-    date = DateField(required=False, nullable=True)
+    account = CharField(required=False, nullable=True)
+    login = CharField(required=True, nullable=True)
+    token = CharField(required=True, nullable=True)
+    arguments = ArgumentsField(required=True, nullable=True)
+    method = CharField(required=True, nullable=False)
+
+    @property
+    def is_admin(self) -> bool:
+        return self.login == ADMIN_LOGIN
 
 
 class OnlineScoreRequest(Request):
@@ -291,30 +298,39 @@ class OnlineScoreRequest(Request):
         return not self.errors
 
 
-class MethodRequest(Request):
-    """Main method request"""
+class ClientsInterestsRequest(Request):
+    """Request for clients_interests method"""
 
-    account = CharField(required=False, nullable=True)
-    login = CharField(required=True, nullable=True)
-    token = CharField(required=True, nullable=True)
-    arguments = ArgumentsField(required=True, nullable=True)
-    method = CharField(required=True, nullable=False)
-
-    @property
-    def is_admin(self):
-        return self.login == ADMIN_LOGIN
+    client_ids = ClientIDsField(required=True)
+    date = DateField(required=False, nullable=True)
 
 
-def check_auth(request):
-    """Check authentication"""
-    if request.is_admin:
-        digest = hashlib.sha512((datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode('utf-8')).hexdigest()
-    else:
-        digest = hashlib.sha512((request.account + request.login + SALT).encode('utf-8')).hexdigest()
-    return digest == request.token
+def method_handler(request, ctx, store) -> (dict, int):
+    """Main method handler"""
+    handlers = {
+        "online_score": online_score_handler,
+        "clients_interests": clients_interests_handler
+    }
+
+    # Parse main request
+    method_request = MethodRequest(request['body'])
+
+    if not method_request.is_valid:
+        return method_request.errors, INVALID_REQUEST
+
+    # Check authentication
+    if not check_auth(method_request):
+        return None, FORBIDDEN
+
+    # Check if method exists
+    if method_request.method not in handlers:
+        return f"Unknown method: {method_request.method}", INVALID_REQUEST
+
+    # Call appropriate handler
+    return handlers[method_request.method](method_request, ctx, store)
 
 
-def online_score_handler(request, ctx, store):
+def online_score_handler(request, ctx, store) -> (dict, int):
     """Handler for online_score method"""
     score_request = OnlineScoreRequest(request.arguments)
 
@@ -344,7 +360,7 @@ def online_score_handler(request, ctx, store):
     return {"score": score}, OK
 
 
-def clients_interests_handler(request, ctx, store):
+def clients_interests_handler(request, ctx, store) -> (dict, int):
     """Handler for clients_interests method"""
     interests_request = ClientsInterestsRequest(request.arguments)
 
@@ -362,29 +378,13 @@ def clients_interests_handler(request, ctx, store):
     return interests, OK
 
 
-def method_handler(request, ctx, store):
-    """Main method handler"""
-    handlers = {
-        "online_score": online_score_handler,
-        "clients_interests": clients_interests_handler
-    }
-
-    # Parse main request
-    method_request = MethodRequest(request['body'])
-
-    if not method_request.is_valid:
-        return method_request.errors, INVALID_REQUEST
-
-    # Check authentication
-    if not check_auth(method_request):
-        return None, FORBIDDEN
-
-    # Check if method exists
-    if method_request.method not in handlers:
-        return f"Unknown method: {method_request.method}", INVALID_REQUEST
-
-    # Call appropriate handler
-    return handlers[method_request.method](method_request, ctx, store)
+def check_auth(request) -> bool:
+    """Check authentication"""
+    if request.is_admin:
+        digest = hashlib.sha512((datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode('utf-8')).hexdigest()
+    else:
+        digest = hashlib.sha512((request.account + request.login + SALT).encode('utf-8')).hexdigest()
+    return digest == request.token
 
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
@@ -402,7 +402,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         request = None
         try:
             data_string = self.rfile.read(int(self.headers['Content-Length']))
-            # data_string_decoded = data_string.decode('cp1251')  # Decode bytes to UTF-8 string
+            # data_string_decoded = data_string.decode('utf-8')  # Decode bytes to UTF-8 string
             data_string_decoded = data_string
             request = json.loads(data_string_decoded)
         except Exception as e:
