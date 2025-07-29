@@ -5,18 +5,12 @@ description = "test implementation of scoring-api"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "redis>=5.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
-    "black>=24.0.0",
-    "isort>=5.13.0",
-    "mypy>=1.8.0",
-    "flake8>=6.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.0.0",
 ]
-
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
