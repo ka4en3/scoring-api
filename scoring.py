@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -22,11 +23,14 @@ def get_score(
     
     # Try to get from cache
     if store:
-        score = store.cache_get(key)
-        if score is not None:
-            print("Score from cache")
-            return float(score)
-    
+        try:
+            score = store.cache_get(key)
+            if score is not None and type(score) == str:
+                logging.info(f"Fetching score from cache")
+                return float(score)
+        except Exception as e:
+            logging.warning(f"Cache get failed for key {key}: {e}")
+
     # Calculate score
     score = 0.0
     if phone:
@@ -40,7 +44,10 @@ def get_score(
     
     # Cache the score for 60 minutes
     if store:
-        store.cache_set(key, score, 60 * 60)
+        try:
+            store.cache_set(key, score, 60 * 60)
+        except Exception as e:
+            logging.warning(f"Can't cache {key}: {e}")
 
     return score
 
