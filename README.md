@@ -1,52 +1,75 @@
-
 # Scoring API
 
-An HTTP API service for scoring user data.
+HTTP API service for online scoring and client interests retrieval with Redis-based caching.
+
+## Features
+
+- Online scoring based on user attributes
+- Client interests retrieval
+- Redis-based caching with retry logic
+- Comprehensive test coverage using pytest
+
+## Requirements
+
+- Python 3.10
+- Redis server
+- UV package manager
 
 ## Installation
 
-### Using UV (recommended)
-
+1. Clone the repository:
 ```bash
-# Install UV
-pip install uv
+git clone https://github.com/ka4en3/scoring-api.git
+cd scoring-api
+```
 
-# Create virtual environment
+2. Install UV (if not already installed):
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+3. Create virtual environment and install dependencies:
+```bash
 uv venv
-
-# Activate
-source .venv/bin/activate
-
-# Install dependencies
-uv pip install .
+source .venv/bin/activate  
+uv pip install -e ".[dev]"
 ```
 
-## Running the API
+## Configuration
 
-### Start the server
+### Redis Configuration
+
+The Store class accepts the following parameters:
+- `host`: Redis host (default: 'localhost')
+- `port`: Redis port (default: 6379)
+- `db`: Redis database number (default: 0)
+- `socket_connect_timeout`: Connection timeout in seconds (default: 5)
+- `socket_timeout`: Socket timeout in seconds (default: 5)
+- `retry_times`: Number of retry attempts (default: 3)
+- `retry_delay`: Delay between retries in seconds (default: 0.1)
+
+## Usage
+
+### Starting Redis
+```bash 
+# if Redis installed locally
+redis-server
+
+# Using Docker
+docker run -d -p 6379:6379 --name redis redis:latest
+```
+
+### Starting the API Server
 
 ```bash
-# Start on default port (8080)
-python api.py
-
-# Start on a different port
-python api.py -p 8081
-
-# Start with logging to a file
-python api.py -l api.log
+python api.py --port 8080 --log api.log
 ```
 
-### Run tests
+### API Endpoints
 
-```bash
-python test.py
-```
+#### Online Score
 
-## API Methods
-
-### `online_score`
-
-Calculates a user's scoring score.
+Calculate online score based on user attributes.
 
 **Request:**
 ```bash
@@ -65,17 +88,18 @@ curl -X POST -H "Content-Type: application/json" -d '{
   }
 }' http://127.0.0.1:8080/method/
 ```
+```powershell
+Invoke-WebRequest -Method POST -Uri "http://127.0.0.1:8080/method/" -ContentType "application/json" -Body '{"account": "horns&hoofs", "login": "h&f", "method": "online_score", "token": "55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af34e14e1d5bcd5a08f21fc95", "arguments": {"phone": "79175002040", "email": "john@doe.ru", "first_name": "John", "last_name": "Doe", "birthday": "01.01.1990", "gender": 1}}'
+```
 
 **Response:**
 ```json
-{"code": 200, "response": {"score": 5.0}}
+{"response": {"score": 5.0}, "code": 200}
 ```
 
----
+#### Clients Interests
 
-### `clients_interests`
-
-Returns a list of interests for the specified client IDs.
+Get interests for specified clients.
 
 **Request:**
 ```bash
@@ -94,35 +118,72 @@ curl -X POST -H "Content-Type: application/json" -d '{
 **Response:**
 ```json
 {
-  "code": 200,
   "response": {
     "1": ["books", "hi-tech"],
     "2": ["pets", "tv"],
     "3": ["travel", "music"],
     "4": ["cinema", "geek"]
-  }
+  },
+  "code": 200
 }
 ```
 
-## Project Structure
+### Authentication
+
+The API uses token-based authentication. Tokens are generated using SHA512 hash:
+- Regular users: `SHA512(account + login + SALT)`
+- Admin users: `SHA512(current_hour + ADMIN_SALT)`
+
+## Testing
+
+### Run all tests
+```bash
+pytest
+```
+
+### Run with coverage
+```bash
+pytest --cov=. --cov-report=html
+```
+
+### Run specific test file
+```bash
+pytest test_api.py -v
+```
+
+### Run specific test class
+```bash
+pytest test_api.py::TestOnlineScoreHandler -v
+```
+
+### Run tests matching pattern
+```bash
+pytest -k "test_valid" -v
+```
+
+## Development
+
+### Project Structure
 
 ```
 scoring-api/
-├── api.py           # Main API file with validation
-├── scoring.py       # Scoring logic
-├── test.py          # Tests
-├── pyproject.toml   # Dependencies and project metadata
-└── README.md        # Readme
+├── api.py             # Main API implementation
+├── scoring.py         # Scoring logic
+├── store.py           # Redis store implementation
+├── test_api.py        # Test suite
+├── pyproject.toml     # Project configuration
+└── README.md          # This file
 ```
 
-## Authentication
+## Error Handling
 
-For regular users, the token is calculated as:
-```
-SHA512(account + login + SALT)
-```
+The API returns appropriate HTTP status codes:
+- 200: Success
+- 400: Bad Request
+- 403: Forbidden (authentication failed)
+- 422: Invalid Request (validation failed)
+- 500: Internal Server Error
 
-For admin:
-```
-SHA512(current_hour + ADMIN_SALT)
-```
+## License
+
+MIT License
